@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: transaction-api
+  docker:
+    compose:
+      file: compose.yaml
+  datasource:
+    url: jdbc:postgresql://localhost:5432/transaction_db
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
