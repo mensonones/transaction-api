@@ -34,11 +34,11 @@ public class TransactionService {
                 ? request.amount().negate()
                 : request.amount();
 
-        transactions.insertIfKeyIsNew(account.getId(), operationType.getId(), amount,
+        transactions.insertIfKeyIsNew(account.getAccountId(), operationType.getId(), amount,
                 OffsetDateTime.now(), idempotencyKey);
         Transaction transaction = transactions.findByIdempotencyKey(idempotencyKey)
                 .orElseThrow(() -> new IllegalStateException("Transaction missing after insert for key: " + idempotencyKey));
-        if (!transaction.getAccount().getId().equals(request.accountId())
+        if (!transaction.getAccount().getAccountId().equals(request.accountId())
                 || !transaction.getOperationTypeId().equals(request.operationTypeId())
                 || transaction.getAmount().compareTo(amount) != 0) {
             throw new ConflictException("Idempotency key already used with different transaction data");
@@ -48,8 +48,8 @@ public class TransactionService {
 
     private static TransactionResponse toResponse(Transaction t) {
         return new TransactionResponse(
-                t.getId(),
-                t.getAccount().getId(),
+                t.getTransactionId(),
+                t.getAccount().getAccountId(),
                 t.getOperationTypeId(),
                 t.getAmount(),
                 t.getEventDate());

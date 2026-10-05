@@ -12,8 +12,7 @@ public class Account {
     @Setter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "account_id")
-    private Long id;
+    private Long accountId;
 
     @Column(name = "document_number", unique = true, nullable = false, length = 32)
     private String documentNumber;

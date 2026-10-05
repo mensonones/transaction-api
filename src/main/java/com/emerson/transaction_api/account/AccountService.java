@@ -41,6 +41,6 @@ public class AccountService {
     }
 
     private static AccountResponse toResponse(Account account) {
-        return new AccountResponse(account.getId(), account.getDocumentNumber());
+        return new AccountResponse(account.getAccountId(), account.getDocumentNumber());
     }
 }

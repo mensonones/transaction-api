@@ -47,7 +47,7 @@ class TransactionServiceTest {
     void shouldApplyAmountSignAccordingToOperation(String description, int operationTypeId,
                                                BigDecimal expectedAmount) {
         Account account = new Account("12345678900");
-        account.setId(1L);
+        account.setAccountId(1L);
         when(accounts.findById(1L)).thenReturn(Optional.of(account));
         when(transactions.findByIdempotencyKey("payment-1")).thenReturn(Optional.of(
                 new Transaction(account, operationTypeId, expectedAmount)));
