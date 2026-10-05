@@ -1,0 +1,586 @@
+{
+  "info": {
+    "name": "Transaction API",
+    "_postman_id": "7c3a8e21-f2b4-4d91-b3e5-0a9c6d8f1e74",
+    "description": "Complete test suite for the Transaction API.\n\nSetup before running:\n1. Select the 'Transaction API — Local' environment\n2. Run 'Create Account', then copy account_id from the response and paste it into the {{accountId}} environment variable\n3. For the Idempotency folder, change {{idemKey}}, {{conflictKey}} and {{reusableKey}} between runs\n\nHappy Path and Validation requests use {{$guid}} as the Idempotency-Key — a fresh UUID is generated automatically on every send.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+
+    {
+      "name": "Accounts",
+      "description": "Run Create Account first and set {{accountId}} from the response before using any transaction request.",
+      "item": [
+
+        {
+          "name": "Create Account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_number\": \"{{documentNumber}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Expected: 201\n\nAfter running: copy account_id from the response body and save it to the {{accountId}} environment variable."
+          }
+        },
+
+        {
+          "name": "Find Account by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{accountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "{{accountId}}"]
+            },
+            "description": "Expected: 200"
+          }
+        },
+
+        {
+          "name": "Find Account — Not Found → 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "99999"]
+            },
+            "description": "Expected: 404"
+          }
+        },
+
+        {
+          "name": "Duplicate Document → 409",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_number\": \"{{documentNumber}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Expected: 409\n\nSame document_number as Create Account. Run after Create Account."
+          }
+        },
+
+        {
+          "name": "Invalid Document (letters) → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"document_number\": \"abc123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Expected: 400 — document_number must contain digits only."
+          }
+        },
+
+        {
+          "name": "Missing document_number → 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts"]
+            },
+            "description": "Expected: 400 — required field absent."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "Transactions / Happy Path",
+      "description": "One request per operation type. {{$guid}} generates a fresh UUID on every send — no key management needed.",
+      "item": [
+
+        {
+          "name": "Normal Purchase (op 1 — debit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 150.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount in response will be -150.00 (debit)."
+          }
+        },
+
+        {
+          "name": "Purchase with Installments (op 2 — debit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 2,\n  \"amount\": 300.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount in response will be -300.00 (debit)."
+          }
+        },
+
+        {
+          "name": "Withdrawal (op 3 — debit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 3,\n  \"amount\": 80.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount in response will be -80.00 (debit)."
+          }
+        },
+
+        {
+          "name": "Credit Voucher (op 4 — credit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 500.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount in response will be +500.00 (credit, only operation type that keeps the positive sign)."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "Transactions / Idempotency",
+      "description": "Run pairs in order. Change the environment variables {{idemKey}}, {{conflictKey}} and {{reusableKey}} between full runs to get a clean slate.",
+      "item": [
+
+        {
+          "name": "Retry — 1st Call → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 12.34\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201. Note the transaction_id."
+          }
+        },
+
+        {
+          "name": "Retry — 2nd Call (same key + data) → 201 same transaction_id",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 12.34\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 with the SAME transaction_id as the 1st call — no duplicate was created."
+          }
+        },
+
+        {
+          "name": "Conflict — 1st Call → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{conflictKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 12.34\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201."
+          }
+        },
+
+        {
+          "name": "Conflict — 2nd Call (same key, different amount) → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{conflictKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 99.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 409 — same key as 1st call but amount differs."
+          }
+        },
+
+        {
+          "name": "Key Free After Error — 1st Call (bad account) → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{reusableKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": 99999,\n  \"operation_type_id\": 4,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 404 — a failed request must not reserve the key."
+          }
+        },
+
+        {
+          "name": "Key Free After Error — 2nd Call (valid data) → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{reusableKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — same key as the failed request, now with valid data. Must succeed."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "Transactions / Validation",
+      "description": "Each request covers one validation rule. All expect 4xx except 'Key Max Length', which proves the boundary is 128 (not 127).",
+      "item": [
+
+        {
+          "name": "Missing Idempotency-Key header → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — Idempotency-Key header absent."
+          }
+        },
+
+        {
+          "name": "Key With Space → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "key with space" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — only letters, digits, . _ : - are allowed."
+          }
+        },
+
+        {
+          "name": "Key Too Long (129 chars) → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — 129 'a' characters, one above the 128-char limit."
+          }
+        },
+
+        {
+          "name": "Key Max Length (128 chars) → 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 1.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — exactly 128 chars (127 'a' + '-1'). Boundary test: proves 128 is accepted. Change the suffix (-1, -2 …) between runs."
+          }
+        },
+
+        {
+          "name": "Negative Amount → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": -50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — amount must be positive; the API applies the sign internally."
+          }
+        },
+
+        {
+          "name": "Zero Amount → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — @Positive rejects zero."
+          }
+        },
+
+        {
+          "name": "Amount Exceeds Limit (16 integer digits) → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 1000000000000000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — limit is 999999999999999.9999 (15 integer digits, 4 fraction)."
+          }
+        },
+
+        {
+          "name": "Missing account_id → 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 400 — account_id is required."
+          }
+        },
+
+        {
+          "name": "Account Not Found → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": 99999,\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 404."
+          }
+        },
+
+        {
+          "name": "Unknown Operation Type → 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 99,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 404 — valid IDs are 1, 2, 3 and 4 only."
+          }
+        }
+
+      ]
+    }
+
+  ]
+}
