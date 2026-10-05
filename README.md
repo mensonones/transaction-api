@@ -10,29 +10,33 @@ with packages grouped by feature. There are no extra service interfaces or infra
 flowchart TD
     Client(["Client"])
 
-    subgraph API ["Spring Boot API (port 8080)"]
-        AC["AccountController\nPOST /accounts\nGET /accounts/:id"]
-        TC["TransactionController\nPOST /transactions"]
+    Client -->|"POST /accounts\nGET /accounts/:id"| AC
+    Client -->|"POST /transactions\n+ Idempotency-Key header"| TC
+
+    subgraph API ["Spring Boot API · port 8080"]
+        AC["AccountController"]
+        TC["TransactionController"]
         AS["AccountService"]
         TS["TransactionService"]
         AR["AccountRepository"]
         TR["TransactionRepository"]
-        EH["ApiExceptionHandler\n@RestControllerAdvice"]
+        EH["ApiExceptionHandler"]
+
+        AC --> AS --> AR
+        TC --> TS --> TR
+        TS --> AR
+        AC & TC -.->|"exception"| EH
     end
 
-    subgraph DB ["PostgreSQL (port 5432)"]
+    subgraph DB ["PostgreSQL · port 5432"]
+        direction LR
         AT[("accounts")]
         TT[("transactions")]
     end
 
-    Client -->|"HTTP JSON"| AC
-    Client -->|"HTTP JSON\n+ Idempotency-Key"| TC
-    AC --> AS --> AR --> AT
-    TC --> TS --> TR --> TT
-    TS --> AR
-    AC -.->|"400 / 404 / 409"| EH
-    TC -.->|"400 / 404 / 409"| EH
-    EH -.->|"JSON error"| Client
+    AR --> AT
+    TR --> TT
+    EH -.->|"400 / 404 / 409"| Client
 ```
 
 ## Requirements
