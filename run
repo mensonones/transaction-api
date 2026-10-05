@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
+cd "$(dirname "$0")"
 
 echo "Building application..."
 ./mvnw package -DskipTests -q
 
 echo "Starting with Docker Compose..."
-docker compose up --build
+docker compose --profile app up --build
