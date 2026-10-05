@@ -7,4 +7,7 @@ import jakarta.validation.constraints.Size;
 
 public record CreateAccountRequest(
         @JsonProperty("document_number")
-        @NotBlank @Size(max = 32) @Pattern(regexp = "\\d+", message = "must contain digits only") String documentNumber) {}
+        @NotBlank(message = "must not be blank")
+        @Size(max = 32, message = "size must be at most 32 characters")
+        @Pattern(regexp = "\\d+", message = "must contain digits only")
+        String documentNumber) {}

@@ -15,7 +15,7 @@ public class Account {
     @Column(name = "account_id")
     private Long id;
 
-    @Column(name = "document_number", nullable = false, length = 32)
+    @Column(name = "document_number", unique = true, nullable = false, length = 32)
     private String documentNumber;
 
     protected Account() {}
