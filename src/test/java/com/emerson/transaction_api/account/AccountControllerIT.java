@@ -7,7 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -17,11 +21,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+@Sql(statements = "TRUNCATE TABLE transactions, accounts RESTART IDENTITY",
+        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class AccountControllerIT {
 
     @Autowired
     WebApplicationContext context;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     MockMvc mockMvc;
 
@@ -30,8 +38,18 @@ class AccountControllerIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
     }
 
+
     @Test
-    void deveCriarContaComSucesso() throws Exception {
+    void shouldPreventDuplicateDocumentsInDatabase() {
+        jdbc.update("INSERT INTO accounts (document_number) VALUES (?)", "12345678900");
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> jdbc.update("INSERT INTO accounts (document_number) VALUES (?)", "12345678900"));
+        assertEquals(1L, jdbc.queryForObject("SELECT count(*) FROM accounts", Long.class));
+    }
+
+    @Test
+    void shouldCreateAccount() throws Exception {
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -43,23 +61,26 @@ class AccountControllerIT {
     }
 
     @Test
-    void deveRetornar409QuandoDocumentoJaExiste() throws Exception {
+    void shouldReturnConflictForDuplicateDocument() throws Exception {
         String body = """
                 { "document_number": "12345678900" }
                 """;
 
         mockMvc.perform(post("/accounts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body));
+                .content(body))
+                .andExpect(status().isCreated());
 
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Document already exists"));
+        assertEquals(1L, jdbc.queryForObject("SELECT count(*) FROM accounts", Long.class));
     }
 
     @Test
-    void deveRetornar400QuandoDocumentoEhVazio() throws Exception {
+    void shouldRejectEmptyDocument() throws Exception {
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -69,7 +90,7 @@ class AccountControllerIT {
     }
 
     @Test
-    void deveRetornar400QuandoDocumentoContemLetras() throws Exception {
+    void shouldRejectDocumentContainingLetters() throws Exception {
         mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -79,7 +100,7 @@ class AccountControllerIT {
     }
 
     @Test
-    void deveBuscarContaPorId() throws Exception {
+    void shouldFindAccountById() throws Exception {
         String response = mockMvc.perform(post("/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -96,7 +117,7 @@ class AccountControllerIT {
     }
 
     @Test
-    void deveRetornar404QuandoContaNaoExiste() throws Exception {
+    void shouldReturnNotFoundForMissingAccount() throws Exception {
         mockMvc.perform(get("/accounts/999"))
                 .andExpect(status().isNotFound());
     }
