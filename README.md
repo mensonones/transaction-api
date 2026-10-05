@@ -7,36 +7,29 @@ with packages grouped by feature. There are no extra service interfaces or infra
 ## Architecture
 
 ```mermaid
-flowchart TD
+flowchart LR
     Client(["Client"])
 
-    Client -->|"POST /accounts\nGET /accounts/:id"| AC
-    Client -->|"POST /transactions\n+ Idempotency-Key header"| TC
-
     subgraph API ["Spring Boot API · port 8080"]
-        AC["AccountController"]
-        TC["TransactionController"]
+        AC["AccountController\nPOST /accounts\nGET /accounts/:id"]
+        TC["TransactionController\nPOST /transactions"]
         AS["AccountService"]
         TS["TransactionService"]
         AR["AccountRepository"]
         TR["TransactionRepository"]
-        EH["ApiExceptionHandler"]
-
-        AC --> AS --> AR
-        TC --> TS --> TR
-        TS --> AR
-        AC & TC -.->|"exception"| EH
+        EH(["ApiExceptionHandler\n400 / 404 / 409"])
     end
 
     subgraph DB ["PostgreSQL · port 5432"]
-        direction LR
         AT[("accounts")]
         TT[("transactions")]
     end
 
-    AR --> AT
-    TR --> TT
-    EH -.->|"400 / 404 / 409"| Client
+    Client -->|"HTTP"| AC & TC
+    AC --> AS --> AR --> AT
+    TC --> TS --> TR --> TT
+    TS --> AR
+    AC & TC -.->|"exception"| EH
 ```
 
 ## Requirements
