@@ -4,6 +4,37 @@ A small Java 21 / Spring Boot API implementing the three endpoints from `Tech Ca
 PostgreSQL stores accounts and transactions. The code follows controller → service → repository,
 with packages grouped by feature. There are no extra service interfaces or infrastructure layers.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    Client(["Client"])
+
+    subgraph API ["Spring Boot API (port 8080)"]
+        AC["AccountController\nPOST /accounts\nGET /accounts/:id"]
+        TC["TransactionController\nPOST /transactions"]
+        AS["AccountService"]
+        TS["TransactionService"]
+        AR["AccountRepository"]
+        TR["TransactionRepository"]
+        EH["ApiExceptionHandler\n@RestControllerAdvice"]
+    end
+
+    subgraph DB ["PostgreSQL (port 5432)"]
+        AT[("accounts")]
+        TT[("transactions")]
+    end
+
+    Client -->|"HTTP JSON"| AC
+    Client -->|"HTTP JSON\n+ Idempotency-Key"| TC
+    AC --> AS --> AR --> AT
+    TC --> TS --> TR --> TT
+    TS --> AR
+    AC -.->|"400 / 404 / 409"| EH
+    TC -.->|"400 / 404 / 409"| EH
+    EH -.->|"JSON error"| Client
+```
+
 ## Requirements
 
 - JDK 21 (Maven is provided by `mvnw`)
