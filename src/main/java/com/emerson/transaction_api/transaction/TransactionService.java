@@ -4,23 +4,27 @@ import com.emerson.transaction_api.account.Account;
 import com.emerson.transaction_api.account.AccountRepository;
 import com.emerson.transaction_api.operation.OperationType;
 import com.emerson.transaction_api.shared.NotFoundException;
+import com.emerson.transaction_api.shared.ConflictException;
 import com.emerson.transaction_api.transaction.dto.CreateTransactionRequest;
 import com.emerson.transaction_api.transaction.dto.TransactionResponse;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 @Service
 public class TransactionService {
-    private final TransactonRepository transactions;
+    private final TransactionRepository transactions;
     private final AccountRepository accounts;
 
-    public TransactionService(TransactonRepository transactions, AccountRepository accounts) {
+    public TransactionService(TransactionRepository transactions, AccountRepository accounts) {
         this.transactions = transactions;
         this.accounts = accounts;
     }
 
-    public TransactionResponse create(CreateTransactionRequest request) {
+    @Transactional
+    public TransactionResponse create(CreateTransactionRequest request, String idempotencyKey) {
         Account account = accounts.findById(request.accountId())
                 .orElseThrow(() -> new NotFoundException("Account not found"));
 
@@ -30,8 +34,16 @@ public class TransactionService {
                 ? request.amount().negate()
                 : request.amount();
 
-        Transaction saved = transactions.save(new Transaction(account, request.operationTypeId(), amount));
-        return toResponse(saved);
+        transactions.insertIfKeyIsNew(account.getId(), operationType.getId(), amount,
+                OffsetDateTime.now(), idempotencyKey);
+        Transaction transaction = transactions.findByIdempotencyKey(idempotencyKey)
+                .orElseThrow(() -> new IllegalStateException("Transaction missing after insert for key: " + idempotencyKey));
+        if (!transaction.getAccount().getId().equals(request.accountId())
+                || !transaction.getOperationTypeId().equals(request.operationTypeId())
+                || transaction.getAmount().compareTo(amount) != 0) {
+            throw new ConflictException("Idempotency key already used with different transaction data");
+        }
+        return toResponse(transaction);
     }
 
     private static TransactionResponse toResponse(Transaction t) {

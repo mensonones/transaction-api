@@ -27,6 +27,9 @@ public class Transaction {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 
+    @Column(name = "idempotency_key", unique = true, length = 128)
+    private String idempotencyKey;
+
     @Column(name = "event_date", nullable = false)
     private OffsetDateTime eventDate;
 

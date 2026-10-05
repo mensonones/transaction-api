@@ -1,4 +1,10 @@
 spring:
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
+      include-binding-errors: never
+      include-exception: false
   application:
     name: transaction-api
   docker:
