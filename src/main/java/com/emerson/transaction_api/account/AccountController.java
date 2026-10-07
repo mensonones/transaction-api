@@ -17,10 +17,10 @@ import java.net.URI;
 @RequestMapping("/accounts")
 @Tag(name = "Accounts")
 public class AccountController {
-    private final AccountService service;
+    private final AccountService accountService;
 
-    public AccountController(AccountService service) {
-        this.service = service;
+    public AccountController(AccountService accountService) {
+        this.accountService = accountService;
     }
 
     @PostMapping
@@ -31,7 +31,7 @@ public class AccountController {
             @ApiResponse(responseCode = "409", description = "Document number already registered")
     })
     public ResponseEntity<AccountResponse> create(@Valid @RequestBody CreateAccountRequest request) {
-        AccountResponse account = service.create(request);
+        AccountResponse account = accountService.create(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(account.accountId()).toUri();
         return ResponseEntity.created(location).body(account);
@@ -44,6 +44,6 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
     public AccountResponse findById(@PathVariable Long accountId) {
-        return service.findById(accountId);
+        return accountService.findById(accountId);
     }
 }

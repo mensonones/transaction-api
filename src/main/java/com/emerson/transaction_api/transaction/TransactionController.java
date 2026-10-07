@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/transactions")
 @Tag(name = "Transactions")
 public class TransactionController {
-    private final TransactionService service;
+    private final TransactionService transactionService;
 
-    public TransactionController(TransactionService service) {
-        this.service = service;
+    public TransactionController(TransactionService transactionService) {
+        this.transactionService = transactionService;
     }
 
     @PostMapping
@@ -39,6 +39,6 @@ public class TransactionController {
             @Pattern(regexp = "[A-Za-z0-9._:-]+", message = "must contain only letters, digits, dots, underscores, colons or hyphens")
             @Parameter(description = "Unique key (1–128 chars, letters/digits/._:-) to guarantee exactly-once delivery", required = true)
             String idempotencyKey) {
-        return service.create(request, idempotencyKey);
+        return transactionService.create(request, idempotencyKey);
     }
 }

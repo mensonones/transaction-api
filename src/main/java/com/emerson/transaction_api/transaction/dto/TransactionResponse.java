@@ -9,5 +9,5 @@ public record TransactionResponse(
         @JsonProperty("transaction_id") Long transactionId,
         @JsonProperty("account_id") Long accountId,
         @JsonProperty("operation_type_id") Integer operationTypeId,
-        BigDecimal amount,
+        @JsonProperty("amount") BigDecimal amount,
         @JsonProperty("event_date") OffsetDateTime eventDate) {}

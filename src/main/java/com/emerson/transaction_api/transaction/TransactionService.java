@@ -15,17 +15,17 @@ import java.time.OffsetDateTime;
 
 @Service
 public class TransactionService {
-    private final TransactionRepository transactions;
-    private final AccountRepository accounts;
+    private final TransactionRepository transactionRepository;
+    private final AccountRepository accountRepository;
 
-    public TransactionService(TransactionRepository transactions, AccountRepository accounts) {
-        this.transactions = transactions;
-        this.accounts = accounts;
+    public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository) {
+        this.transactionRepository = transactionRepository;
+        this.accountRepository = accountRepository;
     }
 
     @Transactional
     public TransactionResponse create(CreateTransactionRequest request, String idempotencyKey) {
-        Account account = accounts.findById(request.accountId())
+        Account account = accountRepository.findById(request.accountId())
                 .orElseThrow(() -> new NotFoundException("Account not found"));
 
         OperationType operationType = OperationType.fromId(request.operationTypeId());
@@ -34,15 +34,16 @@ public class TransactionService {
                 ? request.amount().negate()
                 : request.amount();
 
-        transactions.insertIfKeyIsNew(account.getAccountId(), operationType.getId(), amount,
+        transactionRepository.insertIfKeyIsNew(account.getAccountId(), operationType.getId(), amount,
                 OffsetDateTime.now(), idempotencyKey);
-        Transaction transaction = transactions.findByIdempotencyKey(idempotencyKey)
+        Transaction transaction = transactionRepository.findByIdempotencyKey(idempotencyKey)
                 .orElseThrow(() -> new IllegalStateException("Transaction missing after insert for key: " + idempotencyKey));
         if (!transaction.getAccount().getAccountId().equals(request.accountId())
                 || !transaction.getOperationTypeId().equals(request.operationTypeId())
                 || transaction.getAmount().compareTo(amount) != 0) {
             throw new ConflictException("Idempotency key already used with different transaction data");
         }
+
         return toResponse(transaction);
     }
 

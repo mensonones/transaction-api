@@ -13,16 +13,16 @@ import java.sql.SQLException;
 public class AccountService {
     private static final String UNIQUE_VIOLATION = "23505";
 
-    private final AccountRepository accounts;
+    private final AccountRepository accountRepository;
 
     public AccountService(AccountRepository accounts) {
-        this.accounts = accounts;
+        this.accountRepository = accounts;
     }
 
     public AccountResponse create(CreateAccountRequest request) {
         String document = request.documentNumber().trim();
         try {
-            Account saved = accounts.saveAndFlush(new Account(document));
+            Account saved = accountRepository.saveAndFlush(new Account(document));
             return toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
             // PostgreSQL reports a duplicate unique value with SQLState 23505.
@@ -35,7 +35,7 @@ public class AccountService {
     }
 
     public AccountResponse findById(Long id) {
-        Account account = accounts.findById(id)
+        Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Account not found"));
         return toResponse(account);
     }
