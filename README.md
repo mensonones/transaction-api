@@ -89,8 +89,8 @@ curl -i -X POST http://localhost:8080/transactions \
   -d '{"account_id":1,"operation_type_id":1,"amount":50.00}'
 ```
 
-The transaction response contains its ID, account ID, operation type, signed amount and event date.
-For the purchase above, the stored and returned amount is `-50.00`.
+The transaction response contains its ID, account ID, operation type, signed amount, current balance and event date.
+For the purchase above, the stored and returned amount is `-50.00`. The `balance` field starts equal to `amount` and is reduced as credit vouchers discharge the debt.
 
 | Operation ID | Description | Stored sign |
 |---|---|---|
@@ -158,6 +158,16 @@ The key is stored on the transaction with a unique constraint. PostgreSQL's
 The service reads and checks the stored transaction in the same database transaction.
 There is no extra service or in-memory cache. Hibernate adds the nullable column on startup:
 old transactions remain without keys; all new API requests require one.
+
+## Postman collection
+
+`Transaction API.postman_collection.json` and `Transaction API.postman_environment.json` are included at the project root. Import both into Postman, select the **Transaction API — Local** environment, and follow the folder order:
+
+1. **Accounts** — create an account and save `account_id` to the environment variable
+2. **Transactions / Happy Path** — one request per operation type
+3. **Transactions / Feature 2 — Discharge** — step-by-step discharge scenario with idempotency retry
+4. **Transactions / Idempotency** — retry, conflict and key-after-error flows
+5. **Transactions / Validation** — 4xx edge cases
 
 ## Tests
 
