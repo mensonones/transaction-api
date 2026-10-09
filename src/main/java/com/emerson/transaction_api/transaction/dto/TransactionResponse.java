@@ -10,4 +10,5 @@ public record TransactionResponse(
         @JsonProperty("account_id") Long accountId,
         @JsonProperty("operation_type_id") Integer operationTypeId,
         @JsonProperty("amount") BigDecimal amount,
+        @JsonProperty("balance")  BigDecimal balance,
         @JsonProperty("event_date") OffsetDateTime eventDate) {}
