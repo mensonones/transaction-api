@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -15,8 +16,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // PostgreSQL waits for a concurrent insert with this key before deciding whether to insert.
     @Modifying
     @Query(value = """
-            INSERT INTO transactions (account_id, operation_type_id, amount, event_date, idempotency_key)
-            VALUES (:accountId, :operationTypeId, :amount, :eventDate, :key)
+            INSERT INTO transactions (account_id, operation_type_id, amount, balance, event_date, idempotency_key)
+            VALUES (:accountId, :operationTypeId, :amount, :amount, :eventDate, :key)
             ON CONFLICT (idempotency_key) DO NOTHING
             """, nativeQuery = true)
     int insertIfKeyIsNew(@Param("accountId") Long accountId,
@@ -24,4 +25,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                          @Param("amount") BigDecimal amount,
                          @Param("eventDate") OffsetDateTime eventDate,
                          @Param("key") String key);
+
+    List<Transaction> findByAccount_AccountIdAndBalanceLessThanOrderByEventDateAscTransactionId(Long accountId, BigDecimal zero);
 }

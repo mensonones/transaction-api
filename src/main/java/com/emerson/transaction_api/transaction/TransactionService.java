@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 @Service
 public class TransactionService {
@@ -25,7 +26,7 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse create(CreateTransactionRequest request, String idempotencyKey) {
-        Account account = accountRepository.findById(request.accountId())
+        Account account = accountRepository.findByAccountId(request.accountId())
                 .orElseThrow(() -> new NotFoundException("Account not found"));
 
         OperationType operationType = OperationType.fromId(request.operationTypeId());
@@ -34,7 +35,7 @@ public class TransactionService {
                 ? request.amount().negate()
                 : request.amount();
 
-        transactionRepository.insertIfKeyIsNew(account.getAccountId(), operationType.getId(), amount,
+        int inserted = transactionRepository.insertIfKeyIsNew(account.getAccountId(), operationType.getId(), amount,
                 OffsetDateTime.now(), idempotencyKey);
         Transaction transaction = transactionRepository.findByIdempotencyKey(idempotencyKey)
                 .orElseThrow(() -> new IllegalStateException("Transaction missing after insert for key: " + idempotencyKey));
@@ -44,7 +45,29 @@ public class TransactionService {
             throw new ConflictException("Idempotency key already used with different transaction data");
         }
 
+        if (inserted == 1 && operationType == OperationType.CREDIT_VOUCHER) {
+            discharge(transaction);
+        }
+
         return toResponse(transaction);
+    }
+
+    private void discharge(Transaction transaction) {
+        BigDecimal transactionBalance = transaction.getBalance();
+        List<Transaction> debits = transactionRepository
+                .findByAccount_AccountIdAndBalanceLessThanOrderByEventDateAscTransactionId(transaction.getAccount().getAccountId(), BigDecimal.ZERO);
+
+        for (Transaction debit : debits) {
+            if (transactionBalance.signum() <= 0) break;
+
+            BigDecimal debitBalance = debit.getBalance();
+            BigDecimal debitAmount = transactionBalance.min(debitBalance.negate());
+            debit.updateBalance(debitBalance.add(debitAmount));
+
+            transactionBalance  = transactionBalance.subtract(debitAmount);
+        }
+
+        transaction.updateBalance(transactionBalance);
     }
 
     private static TransactionResponse toResponse(Transaction t) {
@@ -53,6 +76,7 @@ public class TransactionService {
                 t.getAccount().getAccountId(),
                 t.getOperationTypeId(),
                 t.getAmount(),
+                t.getBalance(),
                 t.getEventDate());
     }
 }

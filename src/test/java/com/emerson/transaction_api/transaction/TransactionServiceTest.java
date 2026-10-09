@@ -48,7 +48,8 @@ class TransactionServiceTest {
                                                BigDecimal expectedAmount) {
         Account account = new Account("12345678900");
         account.setAccountId(1L);
-        when(accounts.findById(1L)).thenReturn(Optional.of(account));
+        when(accounts.findByAccountId(1L)).thenReturn(Optional.of(account));
+        when(transactions.insertIfKeyIsNew(eq(1L), eq(operationTypeId), any(BigDecimal.class), any(OffsetDateTime.class), eq("payment-1"))).thenReturn(1);
         when(transactions.findByIdempotencyKey("payment-1")).thenReturn(Optional.of(
                 new Transaction(account, operationTypeId, expectedAmount)));
 

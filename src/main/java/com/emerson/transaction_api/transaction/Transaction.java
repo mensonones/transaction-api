@@ -26,6 +26,9 @@ public class Transaction {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 
+    @Column(nullable = false)
+    private BigDecimal balance;
+
     @Column(name = "idempotency_key", unique = true, length = 128)
     private String idempotencyKey;
 
@@ -38,6 +41,11 @@ public class Transaction {
         this.account = account;
         this.operationTypeId = operationTypeId;
         this.amount = amount;
+        this.balance = amount;
         this.eventDate = OffsetDateTime.now();
+    }
+
+    public void updateBalance(BigDecimal newBalance) {
+        this.balance = newBalance;
     }
 }
