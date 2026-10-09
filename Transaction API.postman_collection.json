@@ -356,6 +356,146 @@
     },
 
     {
+      "name": "Transactions / Feature 2 — Discharge",
+      "description": "Run requests in order. Each group starts with a fresh state — run 'Create Account' and set {{accountId}} before starting.\n\nUse {{$guid}} freely here; discharge only runs on the first insert, so retries are safe.",
+      "item": [
+
+        {
+          "name": "1. Debit 100 (setup)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-debit-1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 100.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount: -100.00, balance: -100.00."
+          }
+        },
+
+        {
+          "name": "2. Debit 50 (second debit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-debit-2" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 1,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — amount: -50.00, balance: -50.00."
+          }
+        },
+
+        {
+          "name": "3. Credit 80 — partial discharge of first debit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-credit-1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 80.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — credit balance: 0.00 (fully used). First debit balance goes from -100 to -20. Second debit unchanged at -50."
+          }
+        },
+
+        {
+          "name": "4. Credit 100 — discharges remaining debits, leftover balance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-credit-2" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 100.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — credit balance: 30.00 (used 20 for first debit + 50 for second debit). Both debits go to 0.00."
+          }
+        },
+
+        {
+          "name": "5. Credit with no pending debits — balance stays full",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-credit-nodebits" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 50.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 — no pending debits, so balance stays 50.00 (equal to amount). Run after all debits are fully discharged."
+          }
+        },
+
+        {
+          "name": "6. Retry credit — discharge not run again (idempotency)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",    "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "discharge-credit-1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": {{accountId}},\n  \"operation_type_id\": 4,\n  \"amount\": 80.00\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["transactions"]
+            },
+            "description": "Expected: 201 with SAME transaction_id as request 3. Discharge is NOT run again — debits are not double-abated. Same key as 'Credit 80'."
+          }
+        }
+
+      ]
+    },
+
+    {
       "name": "Transactions / Validation",
       "description": "Each request covers one validation rule. All expect 4xx except 'Key Max Length', which proves the boundary is 128 (not 127).",
       "item": [
